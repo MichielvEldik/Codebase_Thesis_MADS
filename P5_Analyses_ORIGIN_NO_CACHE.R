@@ -1,3 +1,6 @@
+# USED files:
+#            full_geomerged_df_4.csv
+
 library(car)
 library(dplyr)
 library(sampleSelection)
@@ -20,8 +23,7 @@ library(VGAM)
 library(plotly)
 
 # Load data ------------------------------------------------------------------ 
-input <- read.csv("full_geomerged_df_5.csv")
-input <- read.csv("full_geomerged_df_5_new.csv")
+input <- read.csv("full_geomerged_df_4.csv")
 brazil_df <- input
 
 # PART 1: DATA ENGINEERING

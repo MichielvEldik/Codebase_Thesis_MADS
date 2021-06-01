@@ -1,33 +1,27 @@
 # USED files:
-#            full_geomerged_df_2.csv (from part 2: Lemma)
+#            full_geomerged_df_3.csv
 # 
 # WRITE files:
-#            full_geomerged_df_3.csv (for part 4)
+#            full_geomerged_df_4.csv
 
 library(lubridate)
 library(dplyr)
-
 
 input <- read.csv("full_geomerged_df_3.csv")
 brazil_df <- input
 
 
-
-
-
-
-
-# ------ #
-# Rename # ------------------------------------------------------------------- #
-# ------ #
+# --------- #
+# 1. Rename # ---------------------------------------------------------------- #
+# --------- #
 
 brazil_df <- brazil_df %>%
   rename(bef_nchar_perword = nchar_perword)
 
 
-# ---------- #
-# na to zero # --------------------------------------------------------------- #
-# ---------- #
+# ------------- #
+# 2. NA to zero # ------------------------------------------------------------ #
+# ------------- #
 
 
 brazil_df <- brazil_df %>%
@@ -36,9 +30,9 @@ brazil_df <- brazil_df %>%
 colSums(is.na(brazil_df))
 
 
-# --------- #
-# Date data # ---------------------------------------------------------------- #
-# --------- #
+# ------------ #
+# 3. Date data # ------------------------------------------------------------- #
+# ------------ #
 
 # To date format
 brazil_df <- brazil_df %>%
@@ -107,9 +101,9 @@ brazil_df <- brazil_df %>%
          sent_sat = ifelse(review_sent_dow == "za", 1, 0)
         )
 
-# ----------------------------- #
-# Message and title derivatives # ---------------------------------------------
-# ----------------------------- #
+# -------------------------------- #
+# 4. Message and title derivatives # ------------------------------------------
+# -------------------------------- #
 
 # Create dummy for message vs no message [BASED ON AFTER LEMMA]
 brazil_df <- brazil_df %>%
@@ -141,9 +135,9 @@ brazil_df <- brazil_df %>%
   mutate(top2box = ifelse(review_score > 3, 1, 0))
 
 
-# ----------------------------- #
-#      Product derivatives      # ---- (in progress) ------------------------- #
-# ----------------------------- #
+# ---------------------------------- #
+# 5. SEC categorizations of products # ----------------------------------------
+# ---------------------------------- #
 
 # Work in progress! 
 table(brazil_df$product_category_name)
@@ -224,9 +218,9 @@ product_cats <- brazil_df %>%
 
 
 
-# ----------------- #
-# Regions variables # -------------------------------------------------------- #
-# ----------------- #
+# -------------------- #
+# 6. Regions variables # ------------------------------------------------------
+# -------------------- #
 
 c_north <- c("AC","AP","AM","PA", "RO", "RR", "TO")
 c_south <- c("SC", "RS", "PR")
@@ -257,9 +251,9 @@ brazil_df <- brazil_df %>%
          region = ifelse(customer_state == "DF", "southeast", region), # Belongs to southeast, culturally
          region = as.factor(region))
 
-# ------------------------------------ #
-# Distinguish freight-related messages # ------------------------------------- # 
-# ------------------------------------ #
+# --------------------------------------- #
+# 7. Distinguish freight-related messages # -----------------------------------
+# --------------------------------------- #
 
 # Due to lemmatization we don't need to worry about tenses
 listje <- c("receb", # received
@@ -300,20 +294,10 @@ brazil_df <- brazil_df %>%
   mutate(other_issue = ifelse(diff_est_deliv > 1, 1, 0))
 
 
-# -------------- #
-# Discretization # ----------------------------------------------------------- #
-# -------------- #
-
-# ---------------------------------------------------------------------------- #
-# Beuzen, T., Marshall, L., & Splinter, K. D. (2018). 
-# A comparison of methods for discretizing continuous variables in Bayesian Networks. 
-# Environmental modelling & software, 108, 61-66.
-# ---------------------------------------------------------------------------- #
-# ReliefF algorithm
-# Assumptions? 
-
-# Posit that supervised works best for predictive (but how about variance?)
-
+# ----------------- #
+# 8. Discretization # ----------------------------------------------------------
+# ----------------- #
+# Beuzen, T., Marshall, L., & Splinter, K. D. (2018)
 library(CORElearn)
 library(arulesCBA)
 
@@ -333,10 +317,8 @@ brazil_df <- brazil_df %>%
 testje <- brazil_df %>%
   select(new_urbanity, urbanity_disc)
 
-# HDI (will be done manually)
-# -----------------------------
-
-# What would they do for HDI if we weren't going to do it manually?
+# HDI (will be done manually anyways following official categories)
+# -----------------------------------------------------------------
 disc_hdi <- discretizeDF.supervised(
   bef_message_bool ~ new_idhm,
   data = brazil_df[,c("bef_message_bool", "new_idhm")])
@@ -368,7 +350,7 @@ testje <- brazil_df %>%
   select(new_idhm, hdi_class)
 
 # Max price
-# ----------
+# ---------
 disc_max_price <- discretizeDF.supervised(
   bef_message_bool ~ max_price,
   data = brazil_df[,c("bef_message_bool", "max_price")])
@@ -414,9 +396,9 @@ disc_item_count <- discretizeDF.supervised(
 
 
 
-# -------------------------- #
-# To the right type (factor) # ----------------------------------------------- #
-# -------------------------- #
+# ----------------------------- #
+# 9. To the right type (factor) # ---------------------------------------------
+# ----------------------------- #
 levels(brazil_df$year)
 
 cols <- c("bef_message_bool",
@@ -465,12 +447,10 @@ brazil_df[,cols_2] <- lapply(brazil_df[cols_2], function(x) as.integer(x))
 
 
 
-# ---------- #
-# Write file #
-# ---------- #
+# -------------- #
+# 10. Write file # -------------------------------------------------------------
+# -------------- #
 
-write.csv(brazil_df, "full_geomerged_df_5.csv")
-
-write.csv(brazil_df, "full_geomerged_df_5_new.csv")
+write.csv(brazil_df, "full_geomerged_df_4.csv")
 
 

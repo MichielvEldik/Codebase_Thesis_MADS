@@ -1,5 +1,5 @@
 # USED files:
-#            full_geomerged_df.csv (from part 1: internal merge)
+#            full_geomerged_df.csv 
 #            lemmatized_message.csv (from Jupyter "spacen met spacy" SpaCy)
 #            lemmatized_title.csv (from Jupyter "spacen met spacy" SpaCy)
 #            stopwords.txt
@@ -7,11 +7,12 @@
 # WRITE files:
 #            for_spacy_message.csv 
 #            for_spacy_title.csv 
-#            full_geomerged_df_2.csv (for part 3)
+#            full_geomerged_df_2.csv
 
 library(tidytext)
 library(dplyr)
 library(qdap)
+library(stringi)
 
 
 input <- read.csv("full_geomerged_df.csv")
@@ -156,13 +157,13 @@ nrow(brazil_df[!is.na(brazil_df$review_comment_message),])
 brazil_df <- brazil_df %>%
   mutate(
     # Convert message
-    review_comment_message = iconv(
+    review_comment_message = stri_trans_general(
       review_comment_message, 
-      to = "ASCII//TRANSLIT"),
+       "Latin-ASCII"),
     # Convert title
-    review_comment_title = iconv(
+    review_comment_title = stri_trans_general(
       review_comment_title,
-      to = "ASCII//TRANSLIT")
+       "Latin-ASCII")
         )
 
 # tidy text format shows word frequencies
@@ -238,7 +239,7 @@ new_text_df <- new_text_df %>%
 port_stopwords <- read.table("stopwords.txt", sep = "", header=F)
 # standardize them
 port_stopwords <- port_stopwords %>%
-  mutate(V1 = iconv(V1, to = "ASCII//TRANSLIT"))
+  mutate(V1 = stri_trans_general(V1,  "Latin-ASCII"))
 # Keep nao
 port_stopwords <- port_stopwords %>%
   filter(!grepl("nao", V1))

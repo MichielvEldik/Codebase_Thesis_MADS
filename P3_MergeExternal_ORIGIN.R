@@ -1,6 +1,5 @@
 # USED files:
-#            full_geomerged_df_3.csv (from part 2: from derived)
-#            data (3).xlsx (from Atlas.bi)
+#            full_geomerged_df_2.csv
 #            atlas_data (udh level input + full municip)
 #            udh_queried_data
 #            dffort.xlsx
