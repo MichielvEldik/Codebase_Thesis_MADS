@@ -26,7 +26,7 @@ input <- read.csv("full_geomerged_df_4.csv")
 brazil_df <- input
 
 # ----------------------------------- #
-# 1. Get correct data representations # --------------------------------------- 
+# 1. Get correct data representations ------------------------------------------ 
 # ----------------------------------- #
 
 
@@ -76,18 +76,34 @@ brazil_df <- brazil_df %>%
                                                           "high", 
                                                           "very high")))
 
+
+# ------------------------ #
+# 2. Fixing some variables -----------------------------------------------------
+# ------------------------ #
+
 # For interpretation sake, reverse the 1-0 config of this dummy
 # Now it goes: if there was an issue, = 1, otherwise 0. 
 brazil_df <- brazil_df %>%
   mutate(other_issue = ifelse(diff_est_deliv > 1, 1, 0))
 
+
+# Fix NAs for metro by calling them {state} + "county"
+brazil_df <- brazil_df %>%
+  mutate(metro = ifelse(is.na(metro), paste(as.character(customer_state), "county", sep = "_"), 
+                        as.character(metro)))
+
+# December dummy variable
+brazil_df <- brazil_df %>%
+  mutate(dec = ifelse(review_sent_moy == "dec", 1, 0))
+
+
 # -------------- #
-# 2. Missingness # ------------------------------------------------------------
+# 3. Missingness --------------------------------------------------------------
 # -------------- #
 
 
-# 2.1. Assessment
-# ---------------
+# ---- 3.1. Assessment ---- 
+# ------------------------- #
 
 colSums(is.na(brazil_df))
 
@@ -107,8 +123,8 @@ missing_logit <- glm(status_problem ~ region + new_urbanity + new_idhm, data = b
 #In south east regions there is some substantial stuff. Otherwise, nothing interesting.
 summary(missing_logit)
 
-# 2.2. Solution
-# -------------
+# ---- 3.2. Solution ----
+# ----------------------- #
 
 brazil_df <- brazil_df %>%
   filter(order_status == "delivered")
@@ -128,44 +144,56 @@ brazil_df <- brazil_df %>%
 colSums(is.na(brazil_df)) # 94539
 
 # -------------------------------- #
-# 3. Create above median variables # ------------------------------------------
+# 4. Create above median variables --------------------------------------------
 # -------------------------------- #
 
-cats <- unique(brazil_df$product_category_name)
-nrep <- rep(0, length(cats))
-prod_uniques <- as.data.frame(nrep, cats)
-prod_uniques$median_approx <- 0
-counter <- 1
+# ---- 4.1. Basic insights ----
+# ----------------------------- #
+cat_overview <- brazil_df %>%
+  group_by(product_category_name) %>%
+  summarise(mean = mean(max_price),
+            median = median(max_price),
+            sd = sd(max_price),
+            count = n())
 
-cat_1 <- brazil_df[brazil_df$product_category_name == cats[1],c("product_category_name","product_id.y","max_price")]
+# Now do the same but only unique product_ids
+uniq_prodids <- brazil_df[!duplicated(brazil_df$product_id.y), ]
+uniq_cat_overview <- uniq_prodids %>%
+  group_by(product_category_name) %>%
+  summarise(mean = mean(max_price),
+            median = median(max_price),
+            sd = sd(max_price),
+            count = n())
+stargazer(uniq_cat_overview, summary = FALSE, type = "html", out = "Unique_cat_overview.html")
 
-sum_cat_1 <- cat_1 %>% group_by(product_id.y) %>% summarise(mean(max_price))
+# ---- 4.2. Incorporate with data set ----
+# ---------------------------------------- #
 
+# Merge
+brazil_df <- merge(uniq_cat_overview[,c("product_category_name", "median")],
+                      brazil_df,
+                      by.x = "product_category_name",
+                      by.y = "product_category_name",
+                      all.y = TRUE)
 
-prod_uniques[2,1] <- 1
-counter <- 1
-for (i in cats) {
-  cat_1 <- brazil_df[brazil_df$product_category_name == i,c("product_category_name","product_id.y","max_price")]
-  sum_cat_1 <- cat_1 %>% group_by(product_id.y) %>% summarise(mean(max_price))
-  prod_uniques[counter,1] <- median(sum_cat_1$`mean(max_price)`)
-  counter <- counter + 1
-}
+brazil_df <- brazil_df %>% 
+  rename(median_of_cat = median)
 
+brazil_df <- brazil_df %>%
+  mutate(above_median = ifelse(max_price > median_of_cat, 1 , 0),
+         above_median_extent = max_price - median_of_cat)
 
-median(sum_cat_1$`mean(max_price)`)
+# ---- 4.3. How often does above_median occur? ---- 
+# ------------------------------------------------- #
+table(brazil_df$above_median)
 
-
-for (i in cats)) {
-  prod_uniques[counter,1] <- length(unique(brazil_df[brazil_df$product_category_name == i,]$product_id.y))
-  counter <- counter + 1 
-}
 
 # ----------------- #
-# 4. First Insights # ---------------------------------------------------------
+# 5. First Insights -----------------------------------------------------------
 # ----------------- #
 
-# 4.1. Check how many people have more than 2 orders
-# --------------------------------------------------
+# ---- 5.1. Check how many people have more than 2 orders ----
+# ------------------------------------------------------------ #
 
 more_than_2 <- brazil_df %>% 
   group_by(customer_unique_id) %>% 
@@ -178,8 +206,8 @@ more_than_2 <- more_than_2 %>%
 mean(more_than_2$two_or_one)
 mean(more_than_2$one)
 
-# 4.1 Check how many people per nest
-# -----------------------------------
+# ---- 5.2 Check how many people per nest ----
+# -------------------------------------------- #
 
 # For metro data
 singletons_metros <- brazil_df[brazil_df$udh_indicator == 1,] %>% 
@@ -207,7 +235,409 @@ singletons_nonmetros <- singletons_nonmetros %>%
 mean(singletons_nonmetros$single)
 
 
+# ---- 5.3 Check how many items per order? ----
+# --------------------------------------------- # 
+table(brazil_df$item_count)
 
-# 4.3 Check how many items per order
-# ----------------------------------
 
+# ---- 5.4. Visualization of state counts and stuff ----
+# ------------------------------------------------------ #
+
+pop <- brazil_df %>%
+  group_by(region, hdi_class_col, bef_message_bool) %>%
+  summarise(n = n())
+
+ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) + 
+  geom_bar(position="stack", stat="identity") +
+  facet_wrap( ~ region, scales = "free")
+
+
+ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_wrap( ~ region, scales = "free") 
+
+zero_low <- sum(pop[pop$hdi_class_col == "low_medium" & pop$bef_message_bool == 0,]$n)
+zero_high <- sum(pop[pop$hdi_class_col == "high" & pop$bef_message_bool == 0,]$n)
+zero_veryhigh <- sum(pop[pop$hdi_class_col == "very high" & pop$bef_message_bool == 0,]$n)
+
+one_low <- sum(pop[pop$hdi_class_col == "low_medium" & pop$bef_message_bool == 1,]$n)
+one_high <- sum(pop[pop$hdi_class_col == "high" & pop$bef_message_bool == 1,]$n)
+one_veryhigh <- sum(pop[pop$hdi_class_col == "very high" & pop$bef_message_bool == 1,]$n)
+
+pop[nrow(pop)+1,] <- NA
+pop[nrow(pop)+1,] <- NA
+pop[nrow(pop)+1,] <- NA
+pop[nrow(pop)+1,] <- NA
+pop[nrow(pop)+1,] <- NA
+pop[nrow(pop)+1,] <- NA
+
+
+# Add Full dist
+pop <- pop %>%
+  mutate(region = as.character(region),
+         hdi_class_col = as.character(hdi_class_col),
+         bef_message_bool = as.character(bef_message_bool))
+
+pop[31:36,1] <- "full"
+pop[31:36,2] <- c("low_medium", "low_medium",
+                  "high", "high",
+                  "very high", "very high")
+pop[31:36,3] <- c("0", "1",
+                  "0", "1",
+                  "0", "1")
+pop[31:36,4] <- c(zero_low, one_low,
+                  zero_high, one_high,
+                  zero_veryhigh, one_veryhigh)
+pop <- pop %>%
+  mutate(region = as.factor(region),
+         hdi_class_col = as.factor(hdi_class_col),
+         bef_message_bool = as.factor(bef_message_bool))
+
+pop <- pop %>%
+  mutate(region = factor(region, levels = c("centerwest",
+                                            "north",
+                                            "northeast",
+                                            "south",
+                                            "southeast",
+                                            "full")),
+         hdi_class_col = factor(hdi_class_col, levels = c("low_medium",
+                                                          "high",
+                                                          "very high")))
+to_go <- c(2,
+           4,
+           6,
+           8,
+           10,
+           12,
+           14,
+           16,
+           18,
+           20,
+           22,
+           24,
+           26,
+           28,
+           30,
+           32,
+           34,
+           36)
+
+new_vec <- rep("0", length(to_go))
+
+counter <- 1
+for (i in to_go){
+  outcome <- pop[i,"n"] / (pop[i,"n"] +  pop[i-1,"n"])
+  new_vec[counter] <- outcome
+  counter <- counter + 1
+}
+
+round(new_vec[[2]], digits = 2)
+
+test <- c("", paste(as.character(round(new_vec[[1]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[2]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[3]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[4]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[5]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[6]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[7]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[8]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[9]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[10]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[11]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[12]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[13]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[14]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[15]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[16]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[17]], digits = 2)), "%", sep = ""),
+          "", paste(as.character(round(new_vec[[18]], digits = 2)), "%", sep = ""))
+
+# Do visual again
+ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) + 
+  geom_bar(position="stack", stat="identity") +
+  geom_text(size = 3.3, aes(label = test, family = "serif"), vjust = -1) + 
+  ylab("count (n)") + 
+  xlab("Human Development Index Category") +
+  theme_bw() + 
+  labs(title = expression(bold("Figure 6")),
+       subtitle = expression(italic("State Counts of HDI and Review Incidence Across Regions"))) +
+  labs(fill = "Review sent, yes (1) no (2)") + 
+  theme(text=element_text(size=13,  family="serif")) +
+  facet_wrap( ~ region, 
+              scales = "free",
+              labeller =labeller(region = c(
+                "centerwest" = "Centerwest (n = 3,537)",
+                "north" = "North (n = 1,779)",
+                "northeast" = "Northeast (n = 8,996)",
+                "south" = "South (n = 13,736)",
+                "southeast" = "Southeast (n = 64,714)",
+                "full" = "Full (n = 92,762)"))) 
+
+
+
+
+# ---- 5.5. Histogram of message length ----
+# ------------------------------------------ #
+
+windowsFonts(`Times New Roman` = windowsFont("Times New Roman"))
+note = expression(paste(italic("Note. "), "Zero-length reviews were excluded from this plot."))
+ggplot(brazil_df[brazil_df$bef_message_bool == 1,], aes(x= bef_nwords)) + 
+  geom_histogram(color="black", fill="coral", size = 0.1, bins = 50) +
+  labs(caption = note) +
+  labs(title = expression(bold("Figure 7")),
+       subtitle = expression(italic("Distribution of Review Message Length Frequencies"))) +
+  xlab("Number of Words") + ylab("Count") +
+  theme(text = element_text(family = "Times New Roman", size = 18),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 18),
+        plot.caption = element_text(hjust = 0))
+
+
+# ---- 5.6. sample overview in table ---- 
+# --------------------------------------- #
+library(data.table)
+hai <- as.data.frame(brazil_df %>% 
+                       select(region, 
+                              new_idhm,
+                              new_young_ratio,
+                              diff_pur_est,
+                              new_urbanity,
+                              bef_message_bool) %>% 
+                       group_by(region) %>%
+                       summarise(
+                         count_idhm = n(),
+                         mean_idhm = mean(new_idhm),
+                         sd_idhm = sd(new_idhm),
+                         mean_yr = mean(new_young_ratio),
+                         sd_yr = sd(new_young_ratio),
+                         mean_diff = mean(diff_pur_est),
+                         mean_urban = mean(new_urbanity),
+                         mean_rate = mean((as.integer(bef_message_bool) - 1))))
+
+hii<-transpose(hai) # Use this and fix the other stuff in google sheets.
+
+
+
+# ---------------------- #
+# 5. Train test split   -------------------------------------------------------
+# ---------------------- #
+
+
+train_size <- floor(0.90 * nrow(brazil_df))
+
+set.seed(777)
+train_ind <- sample(seq_len(nrow(brazil_df)), size = train_size)
+
+train <- brazil_df[train_ind, ]
+test <- brazil_df[-train_ind, ]
+
+
+# -------------------------------------- #
+# 7. Mean centering continuous variables ---------------------------------------
+# -------------------------------------- #
+
+center_scale <- function(x) {
+  scale(x, scale = FALSE)
+}
+
+# apply it
+brazil_df$mc_new_idhm <- center_scale(brazil_df$new_idhm)
+brazil_df$mc_new_young_ratio <- center_scale(brazil_df$new_young_ratio)
+brazil_df$new_urbanity <- center_scale(brazil_df$new_urbanity)
+
+
+
+# ------------- #
+# 6. Modeling   -------------------------------------------------------
+# ------------- #
+
+
+
+glm_probit <- glmer( # FINAAAL
+  formula = bef_message_bool 
+  ~ 1
+  + mc_new_idhm
+  + region
+  + new_urbanity
+  + mc_new_young_ratio
+  + review_score
+  + review_sent_moy
+  + year
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count_disc
+  + review_sent_wknd
+  + above_median*region
+  + (1 | customer_city),
+  family = binomial(link = "probit"),
+  data = brazil_df[brazil_df$udh_indicator == 1,],
+  control = glmerControl(
+    optimizer = "bobyqa", 
+    optCtrl = list(maxfun=2e5)
+  )
+)
+summary(glm_probit)
+
+# https://cran.r-project.org/web/packages/lme4/vignettes/lmerperf.html
+
+
+
+# Speed up 
+# nAGQ = 0
+# bobyqa --> nloptwrap
+# calc.derivs = FALSE 
+
+# Bootmer 
+
+# Disable convergence tests + less acurate --> [g]lmerControl(calc.derivs = FALSE)
+
+library(optimx)
+library(lmerTest)
+
+
+fast_glm_probit <- glmer( # FINAAAL
+  formula = bef_message_bool 
+  ~ 1
+  + mc_new_idhm
+  + region
+  + new_urbanity
+  + mc_new_young_ratio
+  + review_score
+  + year
+  + review_sent_moy
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count_disc
+  + review_sent_wknd
+  + above_median*region
+  + (1 | customer_city),
+  family = binomial(link = "probit"),
+  data = brazil_df[brazil_df$udh_indicator == 0,],
+  nAGQ = 0,
+  control = glmerControl(
+    optimizer = "optimx", calc.derivs = FALSE,
+    optCtrl = list(method = "nlminb", 
+                   starttests = FALSE, 
+                   kkt = FALSE)))
+summary(fast_glm_probit)
+
+
+vif(fast_glm_probit)
+
+cc <- confint(glm_probit,parm="beta_")  ## slow (~ 11 seconds)
+
+  
+anova(glm_probit, type=2, ddf="Kenward-Roger")
+
+
+# I could bootstrap the super fast model.
+confint(fast_glm_probit,parm="beta_",method="Wald")  # Faster
+
+
+
+# Bootstrapping 
+# -------------
+
+
+bootMer(fast_glm_probit)
+
+
+confint(fast_glm_probit, 
+        level = 0.95,
+        method = "boot", 
+        nsim = 10)
+
+
+# Bootstrapping
+library(lmeresampler)
+
+
+bootMer(glm_probit, nsim = 1, type = "parametric", re.form = NA)
+
+
+coef(glm_probit$region)
+
+bootstrap(glm_probit, )
+
+
+vcmodA <- lmer(scale(mc_new_idhm) ~ 1 + (1 | customer_city), data = brazil_df)
+
+mySumm <- function(.) {
+  s <- getME(., "sigma")
+  c(beta = getME(., "beta"), sigma = s, sig01 = unname(s * getME(., "theta")))
+}
+
+
+
+
+# Alternative fast 
+
+
+glm_probit <- glmer(
+  formula = bef_message_bool 
+  ~ 1
+  + mc_new_idhm
+  + region
+  + new_urbanity
+  + mc_new_young_ratio
+  + review_score
+  + review_sent_moy
+  + year
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count_disc
+  + review_sent_wknd
+  + above_median*region
+  + (1 | customer_city),
+  family = binomial(link = "probit"),
+  data = brazil_df,
+  nAGQ = 0,
+  control = glmerControl(
+    optimizer = "bobyqa", 
+    optCtrl = list(maxfun=2e5)
+  )
+)
+summary(glm_probit)
+warnings(glm_probit)
+
+
+
+# --------------------- #
+# ?. Normal logit model --------------------------------------------------------
+# --------------------- #
+
+myprobit <- glm(bef_message_bool 
+                ~ 1
+                + mc_new_idhm
+                + region
+                + new_urbanity
+                + mc_new_young_ratio
+                + review_score
+                + review_sent_moy
+                + year
+                + other_issue
+                + intimate_goods
+                + experience_goods
+                + item_count_disc
+                + review_sent_wknd
+                + above_median*region, 
+                family = binomial(link = "probit"), 
+                data = brazil_df)
+
+
+
+summary(myprobit)
+summary(glm_probit)
+
+
+
+# ------------------- #
+# ?. Stratification   ----------------------------------------------------------
+# ------------------- #
+
+# positive / negative split
+# Freight issue split
+# Region split? 
