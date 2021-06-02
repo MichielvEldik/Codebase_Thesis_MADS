@@ -447,13 +447,38 @@ brazil_df$new_urbanity <- center_scale(brazil_df$new_urbanity)
 
 
 
-# ------------- #
-# 6. Modeling   -------------------------------------------------------
-# ------------- #
+# ----------------- #
+# 6. Modeling main  -------------------------------------------------------
+# ----------------- #
+# Original model, first get this one to converge! 
+glm_probit <- glmer( 
+  formula = bef_message_bool 
+  ~ 1
+  + scale(mc_new_idhm)
+  + region
+  + scale(new_urbanity)
+  + scale(mc_new_young_ratio)
+  + review_score
+  + review_sent_moy
+  + year
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count
+  + review_sent_wknd
+  + above_median*region
+  + (1 | customer_city),
+  family = binomial(link = "probit"),
+  data = brazil_df,
+  control = glmerControl(
+    optimizer = "bobyqa", 
+    optCtrl = list(maxfun=2e5)
+  )
+)
+summary(glm_probit)
 
-
-
-glm_probit <- glmer( # FINAAAL
+# Sped up
+glm_probit_nagq <- glmer( 
   formula = bef_message_bool 
   ~ 1
   + mc_new_idhm
@@ -472,12 +497,120 @@ glm_probit <- glmer( # FINAAAL
   + (1 | customer_city),
   family = binomial(link = "probit"),
   data = brazil_df[brazil_df$udh_indicator == 1,],
+  nAGQ = 0,
   control = glmerControl(
     optimizer = "bobyqa", 
     optCtrl = list(maxfun=2e5)
   )
 )
 summary(glm_probit)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Bootstrapped confidence intervals
+confint(glm_probit, 
+        level = 0.95,
+        method = "boot", 
+        nsim = 10)
+
+
+
+data("mtcars")
+mpg = mtcars$mpg
+n = length(mpg)
+print(mean(mpg))
+hist(x = mpg, probability = TRUE, xlab = "MPG", main = "Histogram of MPG")
+
+
+
+
+B = 10 ## number of bootstraps
+results = numeric(B) ## vector to hold results
+for(b in 1:B){
+  i = sample(x = 1:n, size = n, replace = TRUE) ## sample indices
+  bootSample = mpg[i] ## get data
+  thetaHat = mean(bootSample) ## calculate the mean for bootstrap sample
+  results[b] = thetaHat ## store results
+}
+
+hist(x = results, probability = TRUE, 
+     main = "Bootstrapped Samples of Mean_mpg",
+     xlab = "theta estimates")
+
+
+
+standard_error <- matrix(0, 36, 100)
+fixed_effect <- matrix(0, 36, 100)
+lower_ci <- matrix(0, 36, 100)
+upper_ci <- matrix(0, 36, 100)
+p_values <- matrix(0, 36, 100)
+n_bootstrap <- 100
+
+counter <- 1
+for (i in 1:n_bootstrap){
+  sampy <- brazil_df[sample(nrow(brazil_df), nrow(brazil_df), replace = TRUE), ]
+  glm_probit <- glmer( 
+    formula = bef_message_bool 
+    ~ 1
+    + mc_new_idhm
+    + region
+    + new_urbanity
+    + mc_new_young_ratio
+    + review_score
+    + review_sent_moy
+    + year
+    + other_issue
+    + intimate_goods
+    + experience_goods
+    + item_count_disc
+    + review_sent_wknd
+    + above_median*region
+    + (1 | customer_city),
+    family = binomial(link = "probit"),
+    data = sampy[sampy$udh_indicator == 1,],
+    nAGQ = 0,
+    control = glmerControl(
+      optimizer = "bobyqa", 
+      optCtrl = list(maxfun=2e5)
+    )
+  )
+  all_se <- sqrt(diag(vcov(glm_probit)))
+  connie <- confint(glm_probit,parm="beta_",method="Wald")
+  standard_error[1:36,counter] <- all_se
+  lower_ci[1:36, counter] <- connie[1:36, 1]
+  upper_ci[1:36, counter] <- connie[1:36, 2]
+  fixed_effect[1:36, counter] <- fixef(glm_probit) 
+  p_values[1:36, counter] <- coef(summary(glm_probit))[,4]
+  
+  
+  print(counter)
+  counter <- counter + 1
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # https://cran.r-project.org/web/packages/lme4/vignettes/lmerperf.html
 
@@ -539,15 +672,16 @@ confint(fast_glm_probit,parm="beta_",method="Wald")  # Faster
 
 # Bootstrapping 
 # -------------
-
+library(margins)
 
 bootMer(fast_glm_probit)
 
 
-confint(fast_glm_probit, 
-        level = 0.95,
-        method = "boot", 
-        nsim = 10)
+
+
+margins(glm_probit, brazil_df[brazil_df$udh_indicator == 1,])
+
+
 
 
 # Bootstrapping
