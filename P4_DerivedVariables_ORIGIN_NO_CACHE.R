@@ -394,8 +394,6 @@ disc_item_count <- discretizeDF.supervised(
   data = brazil_df[,c("bef_message_bool", "item_count")])
 
 
-
-
 # ----------------------------- #
 # 9. To the right type (factor) # ---------------------------------------------
 # ----------------------------- #
