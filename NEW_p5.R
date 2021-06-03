@@ -448,13 +448,14 @@ brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
 
 
 
-# ----------------- #
-# 6. Modeling main  -------------------------------------------------------
-# ----------------- #
+# ------------------------ #
+# 6. Modeling Outcome part ----------------------------------------------------
+# ------------------------ #
 
 
 # ---- 6.1. Main probit model with full brazil_df dataset ----
 # ------------------------------------------------------------ #
+
 glm_probit <- glmer( 
   formula = bef_message_bool 
   ~ 1
@@ -479,14 +480,47 @@ glm_probit <- glmer(
     optCtrl = list(maxfun=2e5)
   )
 )
+
 summary(glm_probit)
+AIC(glm_probit)
+saveRDS(glm_probit, file = "probit_full.RDS")
+
+# Quantile Residuals
+glm_probit_simulation <- simulateResiduals(fittedModel = glm_probit, plot = T)
+# histogram of DARHma residuals
+hist(residuals(glm_probit_simulation))
+# normal plot of quantile residuals
+hist(residuals(glm_probit_simulation, 
+               quantileFunction = qnorm, 
+               outlierValues = c(-7,7)))
+
+
+
+# ---- 6.2. Metros only ----
+# -------------------------- #
+
+
+
+# ---- 6.3. Municipality only ----
+# -------------------------------- #
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 # predict.merMod
 glm_probit_full_lp = predict(glm_probit)
-
 # Get mills
 mills_full = dnorm(glm_probit_full_lp)/pnorm(glm_probit_full_lp) 
 hist(mills_full)
@@ -502,6 +536,36 @@ library(DHARMa) # Residuals of (generalized) linear mixed models
 library(JWileymisc)
 citation("DHARMa")
 vignette("DHARMa")
+
+
+
+
+
+
+
+# ---- 6.2.1. Non-multilevel linear model ----
+# -------------------------------------------- #
+
+
+reg_lm <- lm(
+  formula = bef_nwords
+  ~ 1
+  + mills
+  + mc_new_idhm
+  + region
+  + new_urbanity
+  + mc_new_young_ratio
+  + review_score
+  + review_sent_moy
+  + year
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count,
+  data = truncated_brazil_df)
+AIC(reg_lm)
+
+
 
 
 truncated_brazil_df <- brazil_df[brazil_df$bef_message_bool == 1,]
@@ -526,12 +590,11 @@ linear_mod <- lmer(
   data = truncated_brazil_df)
 AIC(linear_mod)
 summary(linear_mod)
-# hist(residuals(linear_mod))
-# qqnorm(residuals(linear_mod))
-simulationOutput <- simulateResiduals(fittedModel = linear_mod, plot = T)
-residuals(simulationOutput)
-hist(residuals(simulationOutput))
+saveRDS(linear_mod, file = "linear_full.RDS")
 
+hist(residuals(linear_mod))
+qqnorm(residuals(linear_mod))
+vif(linear_mod)
 
 # ---- 6.3. Alternative outcome models  ----
 # ------------------------------------------ # 
@@ -561,6 +624,9 @@ nb_mod <- glmer.nb(formula = bef_nwords
   ))
 
 summary(nb_mod)
+
+saveRDS(nb_mod, file = "negative_binomial_full.RDS")
+
 AIC(nb_mod)
 hist(residuals(nb_mod))
 qqnorm(residuals(nb_mod))
@@ -629,11 +695,9 @@ hist(residuals(simulationOutput))
 exp(coef(gamma))
 
 
-
-
-
-
-
+# Which one is best?
+library(lmtest)
+anova(nb_mod, gamma) 
 
 
 
@@ -690,7 +754,30 @@ summary(glm_probit_nagq)
 
 
 
+# ---- robustness checks ----------------------------------------------------
 
+# ---- 6.4. Positives only  ----
+# ------------------------------ #
+
+
+
+# ---- 6.5. Negatives only  ----
+# ------------------------------ #
+
+
+# ---- 6.6. Freight issues only  ----
+# ----------------------------------- #
+
+
+# ---- 6.7. No freight issues  ----
+# --------------------------------- #
+
+
+# ---- 6.8. North  ----
+# --------------------- #
+
+# ---- 6.8. South  ----
+# --------------------- #
 
 
 
