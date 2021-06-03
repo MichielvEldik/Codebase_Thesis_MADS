@@ -950,7 +950,7 @@ hist(residuals(full_prob_model))
 summary(full_probit_model)
 vif(full_probit_model)
 
-# Logit full vs. mixed full (POS/NEG) -----------------------------------------
+# Logit full vs. mixed full (POS/NEG) ------------------------------------------
 
 
 # (4.5.) Fit null model on fullpositives only

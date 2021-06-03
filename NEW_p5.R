@@ -437,27 +437,31 @@ test <- brazil_df[-train_ind, ]
 # -------------------------------------- #
 
 center_scale <- function(x) {
-  scale(x, scale = FALSE)
+  scale(x, scale = TRUE)
 }
 
 # apply it
-brazil_df$mc_new_idhm <- center_scale(brazil_df$new_idhm)
-brazil_df$mc_new_young_ratio <- center_scale(brazil_df$new_young_ratio)
-brazil_df$new_urbanity <- center_scale(brazil_df$new_urbanity)
+brazil_df$cs_new_idhm <- center_scale(brazil_df$new_idhm)
+brazil_df$cs_new_young_ratio <- center_scale(brazil_df$new_young_ratio)
+brazil_df$cs_new_urbanity <- center_scale(brazil_df$new_urbanity)
+brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
 
 
 
 # ----------------- #
 # 6. Modeling main  -------------------------------------------------------
 # ----------------- #
-# Original model, first get this one to converge! 
+
+
+# ---- 6.1. Main probit model with full brazil_df dataset ----
+# ------------------------------------------------------------ #
 glm_probit <- glmer( 
   formula = bef_message_bool 
   ~ 1
-  + scale(mc_new_idhm)
+  + cs_new_idhm
   + region
-  + scale(new_urbanity)
-  + scale(mc_new_young_ratio)
+  + cs_new_urbanity
+  + cs_new_young_ratio
   + review_score
   + review_sent_moy
   + year
@@ -476,6 +480,183 @@ glm_probit <- glmer(
   )
 )
 summary(glm_probit)
+
+
+
+
+# predict.merMod
+glm_probit_full_lp = predict(glm_probit)
+
+# Get mills
+mills_full = dnorm(glm_probit_full_lp)/pnorm(glm_probit_full_lp) 
+hist(mills_full)
+saveRDS(mills_full, file = "mills_full.RDS") # To retrieve it when visualizations
+
+# add mills to df
+brazil_df$mills <- mills
+
+# ---- 6.2. Main Linear Regression model with full brazil_df ----
+# --------------------------------------------------------------- #
+
+library(DHARMa) # Residuals of (generalized) linear mixed models
+library(JWileymisc)
+citation("DHARMa")
+vignette("DHARMa")
+
+
+truncated_brazil_df <- brazil_df[brazil_df$bef_message_bool == 1,]
+
+linear_mod <- lmer(
+  formula = bef_nwords
+  ~ 1
+  + mills
+  + mc_new_idhm
+  + region
+  + new_urbanity
+  + mc_new_young_ratio
+  + review_score
+  + review_sent_moy
+  + year
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count
+  + (1 | customer_city),
+  REML = FALSE,
+  data = truncated_brazil_df)
+AIC(linear_mod)
+summary(linear_mod)
+# hist(residuals(linear_mod))
+# qqnorm(residuals(linear_mod))
+simulationOutput <- simulateResiduals(fittedModel = linear_mod, plot = T)
+residuals(simulationOutput)
+hist(residuals(simulationOutput))
+
+
+# ---- 6.3. Alternative outcome models  ----
+# ------------------------------------------ # 
+
+# negative binomial
+nb_mod <- glmer.nb(formula = bef_nwords
+  ~ 1
+  + mills
+  + mc_new_idhm
+  + region
+  + new_urbanity
+  + mc_new_young_ratio
+  + review_score
+  + review_sent_moy
+  + year
+  + other_issue
+  + intimate_goods
+  + experience_goods
+  + item_count
+  + (1  | customer_city),
+  data = truncated_brazil_df,
+  nAGQ = 0,
+  verbose=TRUE,
+  control = glmerControl(
+    optimizer = "bobyqa", 
+    optCtrl = list(maxfun=2e5)
+  ))
+
+summary(nb_mod)
+AIC(nb_mod)
+hist(residuals(nb_mod))
+qqnorm(residuals(nb_mod))
+
+plot(nb_mod)
+
+simulationOutput <- simulateResiduals(fittedModel = nb_mod, plot = T)
+residuals(simulationOutput)
+hist(residuals(simulationOutput)) # Uniform (flat) IS WHAT WE WANT!
+qqnorm(residuals(simulationOutput))
+
+hist(residuals(simulationOutput, 
+               quantileFunction = qnorm, 
+               outlierValues = c(-7,7)))
+
+boxplot(residuals(simulationOutput))
+
+
+
+# Dunn smith residuals.
+# https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.12552
+
+
+hist(residuals(simulationOutput, 
+               quantileFunction = qnorm, 
+               outlierValues = c(-7,7)))
+
+
+# Gamma Regression
+gamma <- glmer(formula = bef_nchar
+             ~ 1
+             + mills
+             + mc_new_idhm
+             + region
+             + new_urbanity
+             + mc_new_young_ratio
+             + review_score
+             + review_sent_moy
+             + year
+             + other_issue
+             + intimate_goods
+             + experience_goods
+             + item_count
+             + (1 | customer_city),
+            data = truncated_brazil_df,
+            family=Gamma(link = "log"),
+            control = glmerControl(
+              optimizer = "bobyqa", 
+              optCtrl = list(maxfun=2e5)
+            ))
+
+summary(gamma)
+AIC(gamma)
+
+
+
+simulationOutput <- simulateResiduals(fittedModel = nb_mod, plot = T)
+residuals(simulationOutput)
+hist(residuals(simulationOutput))
+
+
+
+
+
+(coef(linear_mod[4]))
+exp(coef(gamma))
+
+
+
+
+
+
+
+
+
+
+
+
+# Influential STUFFFIES
+
+library(influence.ME)
+
+cooks.distance(linear_mod)
+
+summary(linear_mod)
+
+qqnorm(residuals(linear_mod))
+
+
+
+
+# Are values even influential in a maximum likelihood thing?
+
+
+
+
 
 # Sped up
 glm_probit_nagq <- glmer( 
@@ -503,7 +684,7 @@ glm_probit_nagq <- glmer(
     optCtrl = list(maxfun=2e5)
   )
 )
-summary(glm_probit)
+summary(glm_probit_nagq)
 
 
 
