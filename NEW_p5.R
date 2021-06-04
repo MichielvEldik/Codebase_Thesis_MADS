@@ -572,14 +572,36 @@ vif(reg_lm)
 
 truncated_brazil_df <- brazil_df[brazil_df$bef_message_bool == 1,]
 
-linear_mod <- lmer(
+
+# normal mod
+lin_mod_fixed <- lm(bef_nwords
+                    ~ 
+                    #+ mills
+                      cs_new_idhm
+                    + region
+                    + cs_new_urbanity
+                    + cs_new_young_ratio
+                    + review_score
+                    + review_sent_moy
+                    + year
+                    + other_issue
+                    + intimate_goods
+                    + experience_goods
+                    + item_count
+                    + weekend,
+                    data = truncated_brazil_df)
+
+summary(lin_mod_fixed)
+vif(lin_mod_fixed)
+
+lin_mod_fixedlinear_mod <- lmer(
   formula = bef_nwords
   ~ 1
-  + mills
-  + mc_new_idhm
+  #+ mills
+  + cs_new_idhm
   + region
-  + new_urbanity
-  + mc_new_young_ratio
+  + cs_new_urbanity
+  + cs_new_young_ratio
   + review_score
   + review_sent_moy
   + year
@@ -592,15 +614,17 @@ linear_mod <- lmer(
   data = truncated_brazil_df)
 AIC(linear_mod)
 summary(linear_mod)
+performance:icc(linear_mod)
 saveRDS(linear_mod, file = "linear_full.RDS")
 
 hist(residuals(linear_mod))
 qqnorm(residuals(linear_mod))
 vif(linear_mod)
+extract_eq(linear_mod)
 
 # ---- 6.3. Alternative outcome models  ----
 # ------------------------------------------ # 
-
+library(equatiomatic)
 # negative binomial
 nb_mod <- glmer.nb(formula = bef_nwords
   ~ 1
@@ -721,17 +745,14 @@ qqnorm(residuals(linear_mod))
 # Are values even influential in a maximum likelihood thing?
 
 
-
-
-
 # Sped up
 glm_probit_nagq <- glmer( 
   formula = bef_message_bool 
   ~ 1
-  + mc_new_idhm
+  + cs_new_idhm
   + region
-  + new_urbanity
-  + mc_new_young_ratio
+  + cs_new_urbanity
+  + cs_new_young_ratio
   + review_score
   + review_sent_moy
   + year
@@ -740,10 +761,9 @@ glm_probit_nagq <- glmer(
   + experience_goods
   + item_count_disc
   + review_sent_wknd
-  + above_median*region 
   + (1 | customer_city),
   family = binomial(link = "probit"),
-  data = brazil_df[brazil_df$udh_indicator == 1,],
+  data = brazil_df,
   nAGQ = 0,
   control = glmerControl(
     optimizer = "bobyqa", 
@@ -751,10 +771,13 @@ glm_probit_nagq <- glmer(
   )
 )
 summary(glm_probit_nagq)
+library(equatiomatic)
+library(ggeffects)
 
+extract_eq(glm_probit_nagq)
+ggpredict(glm_probit_nagq, "region")
 
-
-
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5970551/
 
 # ---- robustness checks ----------------------------------------------------
 
@@ -820,17 +843,17 @@ hist(x = results, probability = TRUE,
      xlab = "theta estimates")
 
 
-
-standard_error <- matrix(0, 36, 100)
-fixed_effect <- matrix(0, 36, 100)
-lower_ci <- matrix(0, 36, 100)
-upper_ci <- matrix(0, 36, 100)
-p_values <- matrix(0, 36, 100)
 n_bootstrap <- 100
+standard_error <- matrix(0, 36, n_bootstrap)
+fixed_effect <- matrix(0, 36, n_bootstrap)
+lower_ci <- matrix(0, 36, n_bootstrap)
+upper_ci <- matrix(0, 36, n_bootstrap)
+p_values <- matrix(0, 36, n_bootstrap)
+
 
 counter <- 1
 for (i in 1:n_bootstrap){
-  sampy <- brazil_df[sample(nrow(brazil_df), nrow(brazil_df), replace = TRUE), ]
+  sampy <- brazil_df[sample(nrow(brazil_df), nrow(brazil_df), replace = TRUE),]
   glm_probit <- glmer( 
     formula = bef_message_bool 
     ~ 1
