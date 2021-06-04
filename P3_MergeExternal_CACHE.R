@@ -1219,7 +1219,6 @@ library(geobr)
 library(crul)
 library(extrafont)
 library(ggplot2)
-
 # PART 1: Show neighbors for each metro!
 # --------------------------------------
 
@@ -1249,7 +1248,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Baixada Santista",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B1")),
        subtitle = expression(italic("Locations of Olist data cases in RM Baixada Santista (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1268,7 +1267,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Belém",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B2")),
        subtitle = expression(italic("Locations of Olist data cases in RM Belém (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1287,7 +1286,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Belo Horizonte",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B3")),
        subtitle = expression(italic("Locations of Olist data cases in RM Belo Horizonte (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1306,7 +1305,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RIDE - Região Integrada de Desenvolvimento do Distrito Federal e Entorno",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B4")),
        subtitle = expression(italic("Locations of Olist data cases in RIDE Distrito Federal (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1325,7 +1324,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Campinas",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B5")),
        subtitle = expression(italic("Locations of Olist data cases in RM Campinas (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1344,7 +1343,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Curitiba",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B6")),
        subtitle = expression(italic("Locations of Olist data cases in RM Curitiba (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1363,7 +1362,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Florianópolis",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B7")),
        subtitle = expression(italic("Locations of Olist data cases in RM Florianópolis (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1375,14 +1374,14 @@ ggplot() +
   ylab("Latitude in degrees using WGS84 (EPSG:4326)") +
   geom_point(aes(
     y = binded_df[binded_df$metro == "florianopolis" ,]$centroid_lat, 
-    x =  binded_df[binded_df$metro == "florianopolis",]$centroid_long), col = "black", size = 0.01) +
+    x =  binded_df[binded_df$metro == "florianopolis",]$centroid_long), col = "black", size = 0.3) +
   geom_point(aes(
     y = binded_df[binded_df$metro == "florianopolis",]$udh.lat, 
-    x =  binded_df[binded_df$metro == "florianopolis",]$udh.long), col = "red", size = 0.2, shape = 23)
+    x =  binded_df[binded_df$metro == "florianopolis",]$udh.long), col = "red", size = 0.7, shape = 23)
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Fortaleza",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B8")),
        subtitle = expression(italic("Locations of Olist data cases in RM Fortaleza (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1401,7 +1400,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Goiânia",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B9")),
        subtitle = expression(italic("Locations of Olist data cases in RM Goiânia (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1420,7 +1419,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Grande Vitória",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B10")),
        subtitle = expression(italic("Locations of Olist data cases in RM Grande Vitória (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1440,7 +1439,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Maceió",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B11")),
        subtitle = expression(italic("Locations of Olist data cases in RM Maceió (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1459,7 +1458,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Manaus",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B12")),
        subtitle = expression(italic("Locations of Olist data cases in RM Manaus (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1478,7 +1477,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RIDE Petrolina/Juazeiro Região Administrativa Integrada de Desenvolvimento do Pólo Petrolina/PE e Juazeiro/BA",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B13")),
        subtitle = expression(italic("Locations of Olist data cases in RIDE Petrolina Juazeiro (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1497,7 +1496,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Porto Alegre",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B14")),
        subtitle = expression(italic("Locations of Olist data cases in RM Porto Alegre (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1518,7 +1517,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Recife",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B15")),
        subtitle = expression(italic("Locations of Olist data cases in RM Recife (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1537,7 +1536,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Rio de Janeiro",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B16")),
        subtitle = expression(italic("Locations of Olist data cases in RM Rio de Janeiro (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1558,7 +1557,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Salvador",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B17")),
        subtitle = expression(italic("Locations of Olist data cases in RM Salvador (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1577,10 +1576,10 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM Sorocaba",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B18")),
        subtitle = expression(italic("Locations of Olist data cases in RM Sorocaba (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
-  labs(caption = note) + 
+  labs(caption = note_2) + 
   theme(text = element_text(family = "Times New Roman", size = 14),
         plot.title = element_text(size = 14),
         plot.subtitle = element_text(size = 14),
@@ -1596,7 +1595,7 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RIDE TERESINA - Região Integrada de Desenvolvimento da Grande Teresina",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B19")),
        subtitle = expression(italic("Locations of Olist data cases in RIDE Teresina (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1615,10 +1614,10 @@ ggplot() +
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "?",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B20")),
        subtitle = expression(italic("Locations of Olist data cases in Litoral Norte (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
-  labs(caption = note) + 
+  labs(caption = note_2) + 
   theme(text = element_text(family = "Times New Roman", size = 14),
         plot.title = element_text(size = 14),
         plot.subtitle = element_text(size = 14),
@@ -1627,14 +1626,14 @@ ggplot() +
   ylab("Latitude in degrees using WGS84 (EPSG:4326)") +
   geom_point(aes(
     y = binded_df[binded_df$metro == "litoral_norte",]$centroid_lat, 
-    x =  binded_df[binded_df$metro == "litoral_norte",]$centroid_long), col = "black", size = 0.01) +
+    x =  binded_df[binded_df$metro == "litoral_norte",]$centroid_long), col = "black", size = 0.8) +
   geom_point(aes(
     y = binded_df[binded_df$metro == "litoral_norte" ,]$udh.lat, 
-    x =  binded_df[binded_df$metro == "litoral_norte",]$udh.long), col = "red", size = 0.2, shape = 23)
+    x =  binded_df[binded_df$metro == "litoral_norte",]$udh.long), col = "red", size = 0.8, shape = 23)
 
 ggplot() +
   geom_sf(data=metros[metros$name_metro == "RM  Vale do Rio Cuiabá",], fill="steelblue", color="black", size=.2, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 2")),
+  labs(title = expression(bold("Figure B21")),
        subtitle = expression(italic("Locations of Olist data cases in Litoral Norte (black) overlaid with 2010 census data (red)"))) +
   theme_minimal() +
   labs(caption = note) + 
@@ -1657,14 +1656,14 @@ ggplot() +
 state <- read_state(year=2010)
 # The one 
 note = expression(paste(italic("Note. "), "Variation in longitude along latitude is not adjusted for in this graph."))
-
+note_2 = expression(paste(italic("Note. "), "Variation in longitude along latitude is not adjusted for in this graph. Furthermore, no map was available for this data."))
 ggplot() + geom_sf(data=state, 
                    fill=(ifelse(state$name_region == "Norte", "deepskyblue", 
                                 ifelse(state$name_region == "Nordeste", "deepskyblue4",
                                        ifelse(state$name_region == "Sul", "coral", 
                                               ifelse(state$name_region == "Sudeste", "deeppink3", "chartreuse"))))), color="white", size=.15, show.legend = FALSE) +
-  labs(title = expression(bold("Figure 5")),
-       subtitle = expression(italic("Geographic locations of Olist dataset cases in Brazil's five administritave regions"))) +
+  labs(title = expression(bold("Figure F1")),
+       subtitle = expression(italic("Geographic Locations of Olist Dataset Cases in Brazil's five Administritave Regions"))) +
   theme_minimal() +
   labs(caption = note) + 
   theme(text = element_text(family = "Times New Roman", size = 14),

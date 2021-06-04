@@ -359,7 +359,7 @@ ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) +
   ylab("count (n)") + 
   xlab("Human Development Index Category") +
   theme_bw() + 
-  labs(title = expression(bold("Figure 6")),
+  labs(title = expression(bold("Figure 5")),
        subtitle = expression(italic("State Counts of HDI and Review Incidence Across Regions"))) +
   labs(fill = "Review sent, yes (1) no (2)") + 
   theme(text=element_text(size=13,  family="serif")) +
@@ -416,7 +416,7 @@ hai <- as.data.frame(brazil_df %>%
 
 hii<-transpose(hai) # Use this and fix the other stuff in google sheets.
 
-
+stargazer(hii, summary = FALSE, type = "html", out = "overview_continuous.html")
 
 # ---------------------- #
 # 5. Train test split   -------------------------------------------------------
@@ -561,10 +561,12 @@ reg_lm <- lm(
   + other_issue
   + intimate_goods
   + experience_goods
-  + item_count,
+  + item_count
+  + max_price*region,
   data = truncated_brazil_df)
 AIC(reg_lm)
-
+summary(reg_lm)
+vif(reg_lm)
 
 
 
@@ -738,7 +740,7 @@ glm_probit_nagq <- glmer(
   + experience_goods
   + item_count_disc
   + review_sent_wknd
-  + above_median*region
+  + above_median*region 
   + (1 | customer_city),
   family = binomial(link = "probit"),
   data = brazil_df[brazil_df$udh_indicator == 1,],
