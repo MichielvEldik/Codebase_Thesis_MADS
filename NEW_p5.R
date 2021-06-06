@@ -351,28 +351,53 @@ test <- c("", paste(as.character(round(new_vec[[1]], digits = 2)), "%", sep = ""
           "", paste(as.character(round(new_vec[[16]], digits = 2)), "%", sep = ""),
           "", paste(as.character(round(new_vec[[17]], digits = 2)), "%", sep = ""),
           "", paste(as.character(round(new_vec[[18]], digits = 2)), "%", sep = ""))
-
+windowsFonts(`Times New Roman` = windowsFont("Times New Roman"))
 # Do visual again
 ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) + 
   geom_bar(position="stack", stat="identity") +
-  geom_text(size = 3.3, aes(label = test, family = "serif"), vjust = -1) + 
-  ylab("count (n)") + 
+  geom_text(size = 3.3, aes(label = test, family = "Times New Roman"), vjust = -1) + 
+  ylab("Case count (n)") + 
   xlab("Human Development Index Category") +
   theme_bw() + 
   labs(title = expression(bold("Figure 5")),
        subtitle = expression(italic("State Counts of HDI and Review Incidence Across Regions"))) +
   labs(fill = "Review sent, yes (1) no (2)") + 
-  theme(text=element_text(size=13,  family="serif")) +
+  theme(text=element_text(size=13,  family="Times New Roman")) +
   facet_wrap( ~ region, 
               scales = "free",
               labeller =labeller(region = c(
-                "centerwest" = "Centerwest (n = 3,537)",
-                "north" = "North (n = 1,779)",
-                "northeast" = "Northeast (n = 8,996)",
-                "south" = "South (n = 13,736)",
-                "southeast" = "Southeast (n = 64,714)",
-                "full" = "Full (n = 92,762)"))) 
+                "centerwest" = "Centerwest (n = 3,467)",
+                "north" = "North (n = 1,748)",
+                "northeast" = "Northeast (n = 8,884)",
+                "south" = "South (n = 13,533)",
+                "southeast" = "Southeast (n = 66,907)",
+                "full" = "Full (n = 94,539)"))) +scale_fill_manual(values=c("coral", "steelblue"))
 
+
+# Other figures
+
+ggplot(brazil_df, aes(x= new_idhm)) + 
+  geom_histogram(color="black", fill="coral", size = 0.1, bins = 40) + 
+  facet_wrap(~udh_indicator) +
+  xlim(0, 1.00) + 
+  theme_dark() +
+  labs(title = expression(bold("Figure 3")),
+       subtitle = expression(italic("Difference in Frequencies of Human Development Indices between UDH (1) and Municipal Cases (0)"))) +
+  xlab("Human Development Index associated with the location of the related to case") + ylab("Count") +
+  theme(text = element_text(family = "Times New Roman", size = 14),
+        plot.title = element_text(size = 14),
+        plot.subtitle = element_text(size = 14))
+
+ggplot(brazil_df, aes(x= new_urbanity)) + 
+  geom_histogram(color="black", fill="coral", size = 0.1) + 
+  facet_wrap(~udh_indicator) +
+  theme_bw() +
+  labs(title = expression(bold("Figure 4")),
+       subtitle = expression(italic("Difference in Frequencies of Urbanicity Cases between UDH (1) and Municipal Cases (0)"))) +
+  xlab("Ratio of urban population to total population of a single spatial unit associated with a case") + ylab("Count") +
+  theme(text = element_text(family = "Times New Roman", size = 14),
+        plot.title = element_text(size = 14),
+        plot.subtitle = element_text(size = 14))
 
 
 
@@ -381,15 +406,15 @@ ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) +
 
 windowsFonts(`Times New Roman` = windowsFont("Times New Roman"))
 note = expression(paste(italic("Note. "), "Zero-length reviews were excluded from this plot."))
-ggplot(brazil_df[brazil_df$bef_message_bool == 1,], aes(x= bef_nwords)) + 
-  geom_histogram(color="black", fill="coral", size = 0.1, bins = 50) +
+ggplot(brazil_df[brazil_df$bef_message_bool == 1,], aes(x= log(bef_nwords))) + 
+  geom_histogram(color="black", fill="coral", size = 0.1, bins = 15) +
   labs(caption = note) +
   labs(title = expression(bold("Figure 7")),
        subtitle = expression(italic("Distribution of Review Message Length Frequencies"))) +
   xlab("Number of Words") + ylab("Count") +
   theme(text = element_text(family = "Times New Roman", size = 18),
-        plot.title = element_text(size = 18),
-        plot.subtitle = element_text(size = 18),
+        plot.title = element_text(size = 14),
+        plot.subtitle = element_text(size = 14),
         plot.caption = element_text(hjust = 0))
 
 
@@ -402,7 +427,8 @@ hai <- as.data.frame(brazil_df %>%
                               new_young_ratio,
                               diff_pur_est,
                               new_urbanity,
-                              bef_message_bool) %>% 
+                              bef_message_bool,
+                              review_score) %>% 
                        group_by(region) %>%
                        summarise(
                          count_idhm = n(),
@@ -411,7 +437,11 @@ hai <- as.data.frame(brazil_df %>%
                          mean_yr = mean(new_young_ratio),
                          sd_yr = sd(new_young_ratio),
                          mean_diff = mean(diff_pur_est),
+                         sd_diff = sd(diff_pur_est),
                          mean_urban = mean(new_urbanity),
+                         sd_urban = sd(new_urbanity),
+                         mean_review = mean(as.numeric(review_score)),
+                         sd_review = sd(as.numeric(review_score)),
                          mean_rate = mean((as.integer(bef_message_bool) - 1))))
 
 hii<-transpose(hai) # Use this and fix the other stuff in google sheets.
@@ -446,7 +476,142 @@ brazil_df$cs_new_young_ratio <- center_scale(brazil_df$new_young_ratio)
 brazil_df$cs_new_urbanity <- center_scale(brazil_df$new_urbanity)
 brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
 
+# -------------- #
+# Heckman Tryout # ------------------------------------------------------------
+# -------------- #
 
+library(sampleSelection)
+
+
+heckie <- selection(select = bef_message_bool 
+                    ~ new_idhm
+                    + new_urbanity
+                    + new_young_ratio
+                    + region
+                    + item_count
+                    + review_sent_wknd
+                    + other_issue
+                    + above_median
+                    + intimate_goods
+                    + experience_goods
+                    + review_sent_moy
+                    + year
+                    + above_median*region
+                    ,
+                    
+                    outcome = log(bef_nwords)
+                    ~ new_idhm
+                    + new_urbanity
+                    + new_young_ratio
+                    + region
+                    + item_count
+                    + other_issue
+                    + above_median
+                    + intimate_goods
+                    + experience_goods
+                    + review_sent_moy
+                    + year
+                    + above_median*region
+                    ,
+                    data = brazil_df[brazil_df$top2box == 1, ])
+library(car)
+summary(heckie)
+hist(fitted(heckie, part = "selection"))
+hist(fitted(heckie, part = "outcome"))
+fits <- (fitted(heckie, part = "outcome"))
+hist(fits)
+
+library(psych)
+scatter.hist(x=fitted(heckie, part = "selection"), 
+             y=fitted(heckie, part = "outcome"), 
+             density=TRUE, ellipse=TRUE)
+
+vcov(heckie, part = "outcome")
+boxplot(fitted(heckie, part = "selection"))
+boxplot(fitted(heckie, part = "outcome"))
+
+qqPlot(fitted(heckie, part = "outcome"))
+
+quants <- fitted(heckie, part = "outcome")
+
+dev_quants <- quants[quants < 3 & !is.na(quants)]
+labeltjes <- labels(dev_quants)
+
+brazil_df <- brazil_df %>% 
+  mutate(weird_guys <- ifelse(rownames(brazil_df) %in% labeltjes, 1, 0))
+
+weird_preds <- glm(`weird_guys <- ifelse(rownames(brazil_df) %in% labeltjes, 1, 0)` 
+                   ~ new_idhm
+                   + new_urbanity
+                   + new_young_ratio
+                   + region
+                   , data = brazil_df, 
+                   family = binomial(link = "probit")
+                     
+                     )
+summary(weird_preds)
+
+prbit <- glm(bef_message_bool 
+             ~ new_idhm
+             + new_urbanity
+             + new_young_ratio
+             + region
+             + item_count
+             + review_sent_wknd
+             + other_issue
+             + above_median
+             + intimate_goods
+             + experience_goods
+             + review_sent_moy
+             + year
+             + above_median*region
+             , data = brazil_df[brazil_df$top2box == 1,],
+             family = binomial(link = "probit"))
+
+
+vif(prbit)
+
+
+
+
+
+truncated_brazil_df <- brazil_df[brazil_df$bef_message_bool == 1,]
+
+lm <- lm(log(bef_nwords)
+         ~ new_idhm
+         + new_urbanity
+         + new_young_ratio
+         + region
+         + item_count
+         + other_issue
+         + above_median
+         + intimate_goods
+         + experience_goods
+         + review_sent_moy
+         + year
+         + above_median*region
+         , data = truncated_brazil_df)
+
+
+vif(lm)
+plot(cooks.distance(lm))
+
+# cor matrix
+library(corrplot)
+corrie <- cor(brazil_df[,c("new_idhm",
+                 "new_urbanity",
+                 "new_young_ratio",
+                 "item_count")])
+corrplot(corrie, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+
+install.packages("PerformanceAnalytics")
+
+
+
+
+# Above median
+above_med <- 
 
 # ------------------------ #
 # 6. Modeling Outcome part ----------------------------------------------------
@@ -460,7 +625,7 @@ glm_probit <- glmer(
   formula = bef_message_bool 
   ~ 1
   + cs_new_idhm
-  + region
+  # + region
   + cs_new_urbanity
   + cs_new_young_ratio
   + review_score
@@ -474,6 +639,7 @@ glm_probit <- glmer(
   + above_median*region
   + (1 | customer_city),
   family = binomial(link = "probit"),
+  nAGQ = 0,
   data = brazil_df,
   control = glmerControl(
     optimizer = "bobyqa", 

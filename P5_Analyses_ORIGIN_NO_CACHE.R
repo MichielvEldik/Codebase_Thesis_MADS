@@ -333,7 +333,7 @@ test <- c("", paste(as.character(round(new_vec[[1]], digits = 2)), "%", sep = ""
 
 # Do visual again
 ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) + 
-  geom_bar(position="stack", stat="identity") +
+  geom_bar(position="stack", stat="identity", color = "blue", fill = "white") +
   geom_text(size = 3.3, aes(label = test, family = "serif"), vjust = -1) + 
   ylab("count (n)") + 
   xlab("Human Development Index Category") +
@@ -341,7 +341,7 @@ ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) +
   labs(title = expression(bold("Figure 6")),
        subtitle = expression(italic("State Counts of HDI and Review Incidence Across Regions"))) +
   labs(fill = "Review sent, yes (1) no (2)") + 
-  theme(text=element_text(size=13,  family="serif")) +
+  theme(text=element_text(size=13,  family="Times New Roman")) +
   facet_wrap( ~ region, 
               scales = "free",
               labeller =labeller(region = c(
