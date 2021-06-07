@@ -361,12 +361,12 @@ ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) +
   theme_bw() + 
   labs(title = expression(bold("Figure 5")),
        subtitle = expression(italic("State Counts of HDI and Review Incidence Across Regions"))) +
-  labs(fill = "Review sent, yes (1) no (2)") + 
+  labs(fill = expression(atop("Review provided:", paste("No (0), Yes (1)")))) + 
   theme(text=element_text(size=13,  family="Times New Roman")) +
   facet_wrap( ~ region, 
               scales = "free",
               labeller =labeller(region = c(
-                "centerwest" = "Centerwest (n = 3,467)",
+                "centerwest" = "Central-West (n = 3,467)",
                 "north" = "North (n = 1,748)",
                 "northeast" = "Northeast (n = 8,884)",
                 "south" = "South (n = 13,533)",
@@ -467,7 +467,7 @@ test <- brazil_df[-train_ind, ]
 # -------------------------------------- #
 
 center_scale <- function(x) {
-  scale(x, scale = TRUE)
+  scale(x, scale = FALSE)
 }
 
 # apply it
@@ -475,6 +475,18 @@ brazil_df$cs_new_idhm <- center_scale(brazil_df$new_idhm)
 brazil_df$cs_new_young_ratio <- center_scale(brazil_df$new_young_ratio)
 brazil_df$cs_new_urbanity <- center_scale(brazil_df$new_urbanity)
 brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
+
+
+# ------------------------------------ #
+# Final before sending it off to STATA ----------------------------------------
+# ------------------------------------ #
+library(fastDummies)
+
+brazil_df$log_nwords <- log(brazil_df$bef_nwords)
+
+dataf <- dummy_cols(brazil_df, select_columns = "review_sent_moy")
+
+write.csv(dataf, file = "englishmaninnewyork.csv")
 
 # -------------- #
 # Heckman Tryout # ------------------------------------------------------------
@@ -496,6 +508,7 @@ heckie <- selection(select = bef_message_bool
                     + experience_goods
                     + review_sent_moy
                     + year
+                    + top2box
                     + above_median*region
                     ,
                     
@@ -510,25 +523,51 @@ heckie <- selection(select = bef_message_bool
                     + intimate_goods
                     + experience_goods
                     + review_sent_moy
+                    + top2box
                     + year
                     + above_median*region
                     ,
-                    data = brazil_df[brazil_df$top2box == 1, ])
+                    data = brazil_df)
 library(car)
 summary(heckie)
+stargazer(heckie, part = "selection", type = "text")
 hist(fitted(heckie, part = "selection"))
 hist(fitted(heckie, part = "outcome"))
 fits <- (fitted(heckie, part = "outcome"))
 hist(fits)
+margins(heckie)
+
+heckie_2 <- update(heckie, data = brazil_df[brazil_df$udh_indicator == 1,])
+
+new_dfje <- as.data.frame(cbind(fitted(heckie, part = "selection"),
+                  fitted(heckie, part = "outcome")))
 
 library(psych)
 scatter.hist(x=fitted(heckie, part = "selection"), 
              y=fitted(heckie, part = "outcome"), 
-             density=TRUE, ellipse=TRUE)
+             density=FALSE, ellipse=FALSE, smooth = FALSE)
 
 vcov(heckie, part = "outcome")
 boxplot(fitted(heckie, part = "selection"))
 boxplot(fitted(heckie, part = "outcome"))
+library(ggExtra)
+new_dfje <- new_dfje %>%
+  rename("Values of residuals outcome model" = V2,
+         "Values of residuals selection model" = V1)
+
+p <- ggplot(new_dfje, aes(`Values of residuals selection model`, `Values of residuals outcome model`)) + 
+  geom_point() + 
+  theme_bw()  +
+  labs(title = expression(bold("Figure 6")),
+       subtitle = expression(italic("Bivariate Distribution of Residual Plot from the Selection and Outcome Models"))) +
+  theme(text = element_text(family = "Times New Roman", size = 12),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12),
+        plot.caption = element_text(hjust = 0))
+ggExtra::ggMarginal(p, type = "histogram", fill = "coral")
+
+
+
 
 qqPlot(fitted(heckie, part = "outcome"))
 
@@ -564,15 +603,37 @@ prbit <- glm(bef_message_bool
              + experience_goods
              + review_sent_moy
              + year
+             + top2box
              + above_median*region
-             , data = brazil_df[brazil_df$top2box == 1,],
+             , data = brazil_df,
              family = binomial(link = "probit"))
-
-
+summary(prbit)
+plot(residuals(prbit))
 vif(prbit)
+plot(prbit)
+margins(prbit)
+library(mfx)
 
+mfxer <- probitmfx(
+  bef_message_bool 
+  ~ new_idhm
+  + new_urbanity
+  + new_young_ratio
+  + region
+  + item_count
+  + review_sent_wknd
+  + other_issue
+  + above_median
+  + intimate_goods
+  + experience_goods
+  + review_sent_moy
+  + top2box
+  + year
+  + above_median*region
+  , data = brazil_df
+  , atmean = TRUE)
 
-
+mfxer
 
 
 truncated_brazil_df <- brazil_df[brazil_df$bef_message_bool == 1,]
@@ -606,6 +667,42 @@ corrplot(corrie, type = "upper", order = "hclust",
          tl.col = "black", tl.srt = 45)
 
 install.packages("PerformanceAnalytics")
+
+
+
+# Hand marginale ffectrs
+
+coffies <- coef(heckie)
+coffies <- coffies[2:32]
+
+
+library("stats")
+m <- lm(y ~ x1 * x2 * x3)
+cf <- coef(m)[-1] # drop beta_0
+me_x1 <- cf[1] + cf[4]*x2 + cf[6]*x3 + cf[7]*x2*x3
+me_x2 <- cf[2] + cf[4]*x1 + cf[5]*x3 + cf[7]*x1*x3
+me_x3 <- cf[3] + cf[5]*x2 + cf[6]*x1 + cf[7]*x1*x2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -673,10 +770,22 @@ hist(residuals(glm_probit_simulation,
 
 
 
+rev_star_probit <- glm(top2box ~
+                       new_idhm +
+                       new_urbanity +
+                       region + 
+                       freight_issue_bool +
+                       review_sent_moy +
+                       year +
+                       other_issue +
+                       intimate_goods +
+                       experience_goods +
+                       item_count, 
+                       data = brazil_df,
+                       family = binomial(link = "probit"))
 
-
-
-
+summary(rev_star_probit)
+vif(rev_star_probit)
 
 
 
