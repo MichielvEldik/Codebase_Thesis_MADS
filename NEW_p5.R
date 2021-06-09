@@ -524,7 +524,6 @@ heckie <- selection(select = bef_message_bool
                     + late
                     + negative
                     + positive
-                    #+ top2box
                     + intimate_goods
                     + experience_goods
                     + review_sent_moy
@@ -540,7 +539,6 @@ heckie <- selection(select = bef_message_bool
                     + item_count
                     + negative
                     + positive
-                    #+ top2box
                     + early
                     + late
                     + intimate_goods
@@ -561,50 +559,65 @@ vif(heckie)
 library(jtools)
 
 plot_summs(prbit, scale = TRUE)
+selections <- fitted(heckie, part = "selection")
+with_selections <- cbin(brazil_df, selections)
+selections_valences <- with_selections[, c("review_score", "selections", "bef_message_bool")]
 
+
+selections_valences <- selections_valences %>%
+  mutate(err = (as.numeric(bef_message_bool) - 1) - selections,
+         ab_err = abs(err),
+         scale_ab_err = scale(ab_err))
+
+selections_valences %>% group_by(review_score) %>%
+  summarise(mean_err = mean(scale_ab_err))
 
 margins(heckie)
 
-
-new_dfje <- as.data.frame(cbind(fitted(heckie, part = "selection"),
-                  fitted(heckie, part = "outcome")))
-library(MASS)
-library(viridis)
 library(psych)
 scatter.hist(x=fitted(heckie, part = "selection"), 
              y=fitted(heckie, part = "outcome"), 
              density=FALSE, ellipse=FALSE, smooth = FALSE)
+
+
+###################################################################
+
+
+new_dfje <- as.data.frame(cbind(residuals(heckie, part = "selection"),
+                  residuals(heckie, part = "outcome")))
+
+new_dfje <- cbind(new_dfje, brazil_df$review_score)
+
+
+
+library(MASS)
+library(viridis)
 
 library(ggExtra)
 new_dfje <- new_dfje %>%
   rename("Values of residuals outcome model" = V2,
          "Values of residuals selection model" = V1)
 
-
-get_density <- function(x, y, ...) {
-  dens <- MASS::kde2d(x, y, ...)
-  ix <- findInterval(x, dens$x)
-  iy <- findInterval(y, dens$y)
-  ii <- cbind(ix, iy)
-  return(dens$z[ii])
-}
-new_dfje$density <- get_density(new_dfje$`Values of residuals selection model`, new_dfje$`Values of residuals outcome model`)
+names(new_dfje)[names(new_dfje) == "brazil_df$review_score"] <- "Review score"
 
 windowsFonts(`Times New Roman` = windowsFont("Times New Roman"))
 p <- ggplot(new_dfje, aes(`Values of residuals selection model`, `Values of residuals outcome model`)) + 
-  geom_point() +
+  geom_point(aes(colour = `Review score`))+
+  guides(colour = guide_legend(override.aes = list(size=10))) +
   theme_bw()  +
+  theme(legend.position="bottom") +
   labs(title = expression(bold("Figure 8")),
        subtitle = expression(italic("Bivariate Distribution of Residual Plot from the Selection and Outcome Models"))) +
-  theme(text = element_text(family = "Times New Roman", size = 12),
-        plot.title = element_text(size = 12),
-        plot.subtitle = element_text(size = 12),
+  theme(text = element_text(family = "Times New Roman", size = 15),
+        plot.title = element_text(size = 15, vjust = -0.7),
+        plot.subtitle = element_text(size = 15, vjust = -0.7),
         plot.caption = element_text(hjust = 0))
 p
-ggExtra::ggMarginal(p, type = "histogram", fill = "coral")
+ggExtra::ggMarginal(p, type = "histogram", fill = "coral", bins = 100)
 
 p_2 <- ggplot(new_dfje, aes(`Values of residuals selection model`, `Values of residuals outcome model`)) + 
-  geom_bin2d(bins = 170) +
+  geom_bin2d(bins = 300) +
+  scale_fill_continuous(type = "viridis") +
   theme_bw()  +
   labs(title = expression(bold("Figure 8")),
        subtitle = expression(italic("Bivariate Distribution of Residual Plot from the Selection and Outcome Models"))) +
@@ -613,6 +626,28 @@ p_2 <- ggplot(new_dfje, aes(`Values of residuals selection model`, `Values of re
         plot.subtitle = element_text(size = 12),
         plot.caption = element_text(hjust = 0))
 p_2
+
+
+library(broomExtra)
+
+library(dotwhisker)
+
+dwplot(prbit, df_method = "wald")
+m1_df <- tidy(prbit) # create data.frame of regression results
+m1_df # a tidy data.frame available for dwplot
+
+m2 <- as.data.frame(coef(summary(heckie))[, c("Estimate","Std. Error")])
+m2<- m2 %>% rownames_to_column("term")
+m2 <- m2 %>% rename("estimate" = Estimate)
+m2 <- m2 %>% rename("std.error" = `Std. Error`)
+dwplot(m2) + theme_bw()  +
+  labs(title = expression(bold("Figure 8")),
+       subtitle = expression(italic("Bivariate Distribution of Residual Plot from the Selection and Outcome Models"))) +
+  theme(text = element_text(family = "Times New Roman", size = 15),
+        plot.title = element_text(size = 15),
+        plot.subtitle = element_text(size = 15),
+        plot.caption = element_text(hjust = 0))
+
 
 
 qqPlot(fitted(heckie, part = "outcome"))
