@@ -81,10 +81,17 @@ brazil_df <- brazil_df %>%
 # 2. Fixing some variables -----------------------------------------------------
 # ------------------------ #
 
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
 # For interpretation sake, reverse the 1-0 config of this dummy
 # Now it goes: if there was an issue, = 1, otherwise 0. 
 brazil_df <- brazil_df %>%
-  mutate(other_issue = ifelse(diff_est_deliv > 1, 1, 0))
+  mutate(other_issue = ifelse(diff_est_deliv > 1, 1, 0),
+         late = ifelse(diff_est_deliv > 10, 1, 0),
+         early = ifelse(diff_est_deliv < -10, 1, 0))
 
 
 # Fix NAs for metro by calling them {state} + "county"
@@ -163,30 +170,37 @@ uniq_cat_overview <- uniq_prodids %>%
   summarise(mean = mean(max_price),
             median = median(max_price),
             sd = sd(max_price),
+            quantile = as.numeric(quantile(max_price)[4]),
+            max = max(max_price),
+            min = min(max_price),
             count = n())
 stargazer(uniq_cat_overview, summary = FALSE, type = "html", out = "Unique_cat_overview.html")
+
+nrow(uniq_cat_overview[uniq_cat_overview$count < 91,])
 
 # ---- 4.2. Incorporate with data set ----
 # ---------------------------------------- #
 
 # Merge
-brazil_df <- merge(uniq_cat_overview[,c("product_category_name", "median")],
+brazil_df <- merge(uniq_cat_overview[,c("product_category_name", "median", "quantile")],
                       brazil_df,
                       by.x = "product_category_name",
                       by.y = "product_category_name",
                       all.y = TRUE)
 
 brazil_df <- brazil_df %>% 
-  rename(median_of_cat = median)
+  rename(median_of_cat = median,
+         third_quartile_of_cat = quantile)
 
 brazil_df <- brazil_df %>%
   mutate(above_median = ifelse(max_price > median_of_cat, 1 , 0),
-         above_median_extent = max_price - median_of_cat)
+         above_median_extent = max_price - median_of_cat,
+         above_third_quartile = ifelse(max_price > third_quartile_of_cat, 1, 0))
 
 # ---- 4.3. How often does above_median occur? ---- 
 # ------------------------------------------------- #
 table(brazil_df$above_median)
-
+table(brazil_df$above_third_quartile)
 
 # ----------------- #
 # 5. First Insights -----------------------------------------------------------
@@ -467,7 +481,7 @@ test <- brazil_df[-train_ind, ]
 # -------------------------------------- #
 
 center_scale <- function(x) {
-  scale(x, scale = FALSE)
+  scale(x, scale = TRUE)
 }
 
 # apply it
@@ -482,7 +496,12 @@ brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
 # ------------------------------------ #
 library(fastDummies)
 
-brazil_df$log_nwords <- log(brazil_df$bef_nwords)
+brazil_df$log_nwords <- log(brazil_df$bef_nwords + 1)
+
+brazil_df <- brazil_df %>%
+  mutate(positive = ifelse(review_score == 4 | review_score == 5, 1,0),
+         neutral = ifelse(review_score == 3, 1, 0),
+         negative = ifelse(review_score == 1 | review_score == 2, 1, 0))
 
 dataf <- dummy_cols(brazil_df, select_columns = "review_sent_moy")
 
@@ -493,80 +512,107 @@ write.csv(dataf, file = "englishmaninnewyork.csv")
 # -------------- #
 
 library(sampleSelection)
-
+library(car)
 
 heckie <- selection(select = bef_message_bool 
-                    ~ new_idhm
-                    + new_urbanity
-                    + new_young_ratio
+                    ~ cs_new_idhm
+                    + cs_new_urbanity
                     + region
                     + item_count
                     + review_sent_wknd
-                    + other_issue
-                    + above_median
+                    + early
+                    + late
+                    + negative
+                    + positive
+                    #+ top2box
                     + intimate_goods
                     + experience_goods
                     + review_sent_moy
                     + year
-                    + top2box
+                    + product_photos_qty
                     + above_median*region
                     ,
                     
                     outcome = log(bef_nwords)
-                    ~ new_idhm
-                    + new_urbanity
-                    + new_young_ratio
+                    ~ cs_new_idhm
+                    + cs_new_urbanity
                     + region
                     + item_count
-                    + other_issue
-                    + above_median
+                    + negative
+                    + positive
+                    #+ top2box
+                    + early
+                    + late
                     + intimate_goods
                     + experience_goods
                     + review_sent_moy
-                    + top2box
                     + year
+                    + product_photos_qty
                     + above_median*region
                     ,
                     data = brazil_df)
-library(car)
 summary(heckie)
 stargazer(heckie, part = "selection", type = "text")
 hist(fitted(heckie, part = "selection"))
 hist(fitted(heckie, part = "outcome"))
 fits <- (fitted(heckie, part = "outcome"))
 hist(fits)
+vif(heckie)
+library(jtools)
+
+plot_summs(prbit, scale = TRUE)
+
+
 margins(heckie)
 
-heckie_2 <- update(heckie, data = brazil_df[brazil_df$udh_indicator == 1,])
 
 new_dfje <- as.data.frame(cbind(fitted(heckie, part = "selection"),
                   fitted(heckie, part = "outcome")))
-
+library(MASS)
+library(viridis)
 library(psych)
 scatter.hist(x=fitted(heckie, part = "selection"), 
              y=fitted(heckie, part = "outcome"), 
              density=FALSE, ellipse=FALSE, smooth = FALSE)
 
-vcov(heckie, part = "outcome")
-boxplot(fitted(heckie, part = "selection"))
-boxplot(fitted(heckie, part = "outcome"))
 library(ggExtra)
 new_dfje <- new_dfje %>%
   rename("Values of residuals outcome model" = V2,
          "Values of residuals selection model" = V1)
 
+
+get_density <- function(x, y, ...) {
+  dens <- MASS::kde2d(x, y, ...)
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  ii <- cbind(ix, iy)
+  return(dens$z[ii])
+}
+new_dfje$density <- get_density(new_dfje$`Values of residuals selection model`, new_dfje$`Values of residuals outcome model`)
+
+windowsFonts(`Times New Roman` = windowsFont("Times New Roman"))
 p <- ggplot(new_dfje, aes(`Values of residuals selection model`, `Values of residuals outcome model`)) + 
-  geom_point() + 
+  geom_point() +
   theme_bw()  +
-  labs(title = expression(bold("Figure 6")),
+  labs(title = expression(bold("Figure 8")),
        subtitle = expression(italic("Bivariate Distribution of Residual Plot from the Selection and Outcome Models"))) +
   theme(text = element_text(family = "Times New Roman", size = 12),
         plot.title = element_text(size = 12),
         plot.subtitle = element_text(size = 12),
         plot.caption = element_text(hjust = 0))
+p
 ggExtra::ggMarginal(p, type = "histogram", fill = "coral")
 
-
+p_2 <- ggplot(new_dfje, aes(`Values of residuals selection model`, `Values of residuals outcome model`)) + 
+  geom_bin2d(bins = 170) +
+  theme_bw()  +
+  labs(title = expression(bold("Figure 8")),
+       subtitle = expression(italic("Bivariate Distribution of Residual Plot from the Selection and Outcome Models"))) +
+  theme(text = element_text(family = "Times New Roman", size = 12),
+        plot.title = element_text(size = 12),
+        plot.subtitle = element_text(size = 12),
+        plot.caption = element_text(hjust = 0))
+p_2
 
 
 qqPlot(fitted(heckie, part = "outcome"))
@@ -593,22 +639,25 @@ summary(weird_preds)
 prbit <- glm(bef_message_bool 
              ~ new_idhm
              + new_urbanity
-             + new_young_ratio
              + region
              + item_count
              + review_sent_wknd
-             + other_issue
-             + above_median
              + intimate_goods
              + experience_goods
              + review_sent_moy
              + year
-             + top2box
+             + positive
+             + negative
+             + early
+             + late
+             + region
+             + above_median
              + above_median*region
+             + product_photos_qty
              , data = brazil_df,
              family = binomial(link = "probit"))
 summary(prbit)
-plot(residuals(prbit))
+AIC(prbit)
 vif(prbit)
 plot(prbit)
 margins(prbit)
@@ -770,24 +819,23 @@ hist(residuals(glm_probit_simulation,
 
 
 
-rev_star_probit <- glm(top2box ~
+rev_star_probit <- probitmfx(top2box ~
                        new_idhm +
                        new_urbanity +
                        region + 
                        freight_issue_bool +
                        review_sent_moy +
                        year +
-                       other_issue +
                        intimate_goods +
                        experience_goods +
                        item_count, 
-                       data = brazil_df,
-                       family = binomial(link = "probit"))
+                       data = brazil_df[brazil_df$udh_indicator == 1,],
+                       atmean = TRUE)
 
-summary(rev_star_probit)
+rev_star_probit
 vif(rev_star_probit)
 
-
+mean(brazil_df)
 
 
 
