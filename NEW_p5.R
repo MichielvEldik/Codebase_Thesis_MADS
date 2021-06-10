@@ -415,7 +415,7 @@ ggplot(brazil_df, aes(x= new_urbanity)) +
 
 
 
-# ---- 5.5. Histogram of message length ----
+# ---- 5.5. Histogram of message length and other continuous ----
 # ------------------------------------------ #
 
 windowsFonts(`Times New Roman` = windowsFont("Times New Roman"))
@@ -430,6 +430,31 @@ ggplot(brazil_df[brazil_df$bef_message_bool == 1,], aes(x= log(bef_nwords))) +
         plot.title = element_text(size = 14),
         plot.subtitle = element_text(size = 14),
         plot.caption = element_text(hjust = 0))
+
+
+ggplot(brazil_df, aes(x= new_idhm)) + 
+  geom_histogram(color="black", fill="coral", size = 0.1, bins = 15) +
+  labs(caption = note) +
+  labs(title = expression(bold("Figure 7")),
+       subtitle = expression(italic("Distribution of Review Message Length Frequencies"))) +
+  xlab("Number of Words") + ylab("Count") +
+  theme(text = element_text(family = "Times New Roman", size = 18),
+        plot.title = element_text(size = 14),
+        plot.subtitle = element_text(size = 14),
+        plot.caption = element_text(hjust = 0))
+
+ggplot(brazil_df, aes(x= new_urbanity)) + 
+  geom_histogram(color="black", fill="coral", size = 0.1, bins = 15) +
+  labs(caption = note) +
+  labs(title = expression(bold("Figure 7")),
+       subtitle = expression(italic("Distribution of Review Message Length Frequencies"))) +
+  xlab("Number of Words") + ylab("Count") +
+  theme(text = element_text(family = "Times New Roman", size = 18),
+        plot.title = element_text(size = 14),
+        plot.subtitle = element_text(size = 14),
+        plot.caption = element_text(hjust = 0))
+
+
 
 
 # ---- 5.6. sample overview in table ---- 
@@ -480,15 +505,28 @@ test <- brazil_df[-train_ind, ]
 # 7. Mean centering continuous variables ---------------------------------------
 # -------------------------------------- #
 
-center_scale <- function(x) {
+mean_center <- function(x) {
+  scale(x, scale = FALSE)
+}
+
+scaling <- function(x) {
   scale(x, scale = TRUE)
 }
 
+
 # apply it
-brazil_df$cs_new_idhm <- center_scale(brazil_df$new_idhm)
-brazil_df$cs_new_young_ratio <- center_scale(brazil_df$new_young_ratio)
-brazil_df$cs_new_urbanity <- center_scale(brazil_df$new_urbanity)
-brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
+brazil_df$mc_new_idhm <- mean_center(brazil_df$new_idhm)
+brazil_df$mc_new_young_ratio <- mean_center(brazil_df$new_young_ratio)
+brazil_df$mc_new_urbanity <- mean_center(brazil_df$new_urbanity)
+
+
+brazil_df$sc_new_idhm <- scaling(brazil_df$new_idhm)
+brazil_df$sc_new_young_ratio <- scaling(brazil_df$new_young_ratio)
+brazil_df$sc_new_urbanity <- scaling(brazil_df$new_urbanity)
+
+
+
+# brazil_df$cs_bef_nwords <- center_scale(brazil_df$bef_nwords)
 
 
 # ------------------------------------ #
@@ -505,7 +543,8 @@ brazil_df <- brazil_df %>%
 
 dataf <- dummy_cols(brazil_df, select_columns = "review_sent_moy")
 
-write.csv(dataf, file = "englishmaninnewyork.csv")
+write.csv(dataf, file = "zhu_faded.csv")
+saveRDS(dataf, file = "zhu_faded.rds")
 
 # -------------- #
 # Heckman Tryout # ------------------------------------------------------------
@@ -513,6 +552,62 @@ write.csv(dataf, file = "englishmaninnewyork.csv")
 
 library(sampleSelection)
 library(car)
+
+
+heckie_trunce <- selection(select = bef_message_bool 
+                    ~ cs_new_idhm
+                    + cs_new_urbanity
+                    #+ region
+                    + item_count
+                    + review_sent_wknd
+                    #+ early
+                    #+ late
+                    #+ review_score
+                    #+ negative
+                    #+ positive
+                    + intimate_goods
+                    + experience_goods
+                    + review_sent_moy
+                    #+ year
+                    + product_photos_qty
+                    #+ above_median*region
+                    ,
+                    
+                    outcome = log(bef_nwords)
+                    ~ cs_new_idhm
+                    + cs_new_urbanity
+                    #+ region
+                    + item_count
+                    #+ review_score
+                    #+ negative
+                    #+ positive
+                    #+ early
+                    #+ late
+                    + intimate_goods
+                    + experience_goods
+                    + review_sent_moy
+                    #+ year
+                    + product_photos_qty
+                    #+ above_median*region
+                    ,
+                    data = brazil_df[brazil_df$negative == 1,])
+summary(heckie_trunce)
+
+
+hist(residuals(heckie_trunce, part = "selection"))
+hist(residuals(heckie_trunce, part = "outcome"))
+new_dfje_trunce <- as.data.frame(cbind(residuals(heckie_trunce, part = "selection", type = "response"),
+                                residuals(heckie_trunce, part = "outcome")))
+
+plot(new_dfje_trunce$V2, new_dfje_trunce$V1)
+
+
+
+
+new_dfje <- cbind(new_dfje, brazil_df$review_score)
+
+
+
 
 heckie <- selection(select = bef_message_bool 
                     ~ cs_new_idhm
@@ -549,6 +644,10 @@ heckie <- selection(select = bef_message_bool
                     + above_median*region
                     ,
                     data = brazil_df)
+hist(fitted(heckie, part = "selection"))
+hist(residuals(heckie, part = "selection"))
+
+
 summary(heckie)
 stargazer(heckie, part = "selection", type = "text")
 hist(fitted(heckie, part = "selection"))
