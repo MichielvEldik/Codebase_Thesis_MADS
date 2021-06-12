@@ -373,7 +373,7 @@ ggplot(pop, aes(fill=bef_message_bool, y=n, x=hdi_class_col)) +
   ylab("Case count (n)") + 
   xlab("Human Development Index Category") +
   theme_bw() + 
-  labs(title = expression(bold("Figure 5")),
+  labs(title = expression(bold("Figure 3")),
        subtitle = expression(italic("State Counts of HDI and Review Incidence Across Regions"))) +
   labs(fill = expression(atop("Review provided:", paste("No (0), Yes (1)")))) + 
   theme(text=element_text(size=13,  family="Times New Roman")) +
